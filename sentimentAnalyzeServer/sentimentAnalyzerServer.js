@@ -6,12 +6,12 @@ dotenv.config();
 function getNLUInstance() {
     const apikey = process.env.API_KEY;
     const serviceUrl = process.env.API_URL;
-
+    console.log(serviceUrl)
     const NaturalLanguageUnderstandingV1 = require('ibm-watson/natural-language-understanding/v1');
     const { IamAuthenticator } = require('ibm-watson/auth');
 
     const naturalLanguageUnderstanding = new NaturalLanguageUnderstandingV1({
-        version: '2021-06-06',
+        version: '2020-08-01',
         authenticator: new IamAuthenticator({
             apikey
         }),
@@ -32,11 +32,25 @@ app.get("/", (req, res) => {
 });
 
 app.get("/url/emotion", (req, res) => {
-    console.log(req.query.url);
-    naturalLanguageUnderstanding.analyze(req.query.url)
-        .then(res => {
-            console.log(res);
-            return res.send(res);
+    const { url } = req.query;
+    const data = {
+        url,
+        'features': {
+            'entities': {
+                'emotion': true,
+                'sentiment': false
+            }, 'keywords': {
+                'emotion': true,
+                'sentiment': false
+
+            }
+        }
+    }
+    naturalLanguageUnderstanding.analyze(data)
+        .then(response => {
+            console.log(response.result.keywords)
+            const data = calcSum(response.result.keywords)
+            return res.send({ data });
         })
         .catch(err => {
             console.log(err);
@@ -45,18 +59,98 @@ app.get("/url/emotion", (req, res) => {
 });
 
 app.get("/url/sentiment", (req, res) => {
-    return res.send("url sentiment for " + req.query.url);
+    const { url } = req.query;
+    const data = {
+        url,
+        'features': {
+            'entities': {
+                'emotion': false,
+                'sentiment': true
+            }, 'keywords': {
+                'emotion': false,
+                'sentiment': true
+
+            }
+        }
+    }
+    naturalLanguageUnderstanding.analyze(data)
+        .then(response => {
+            return res.send({ data: response.result.keywords[0].sentiment.label });
+        })
+        .catch(err => {
+            console.log(err);
+            return res.send(err);
+        })
 });
 
 app.get("/text/emotion", (req, res) => {
-    return res.send({ "happy": "10", "sad": "90" });
+    const { text } = req.query;
+    const data = {
+        text: text,
+        'features': {
+            'entities': {
+                'emotion': true,
+                'sentiment': false
+            }, 'keywords': {
+                'emotion': true,
+                'sentiment': false
+            }
+        }
+    }
+    naturalLanguageUnderstanding.analyze(data)
+        .then(response => {
+            const data = calcSum(response.result.keywords)
+            return res.send({ data });
+        })
+        .catch(err => {
+            console.log(err);
+            return res.send(err);
+        })
 });
 
 app.get("/text/sentiment", (req, res) => {
-    return res.send("text sentiment for " + req.query.text);
+    const { text } = req.query;
+    const data = {
+        text: text,
+        'features': {
+            'entities': {
+                'emotion': false,
+                'sentiment': true
+            }, 'keywords': {
+                'emotion': false,
+                'sentiment': true
+            }
+        }
+    }
+    naturalLanguageUnderstanding.analyze(data)
+        .then(response => {
+            return res.send({ data: response.result.keywords[0].sentiment.label });
+        })
+        .catch(err => {
+            console.log(err);
+            return res.send(err);
+        })
 });
 
 let server = app.listen(8080, () => {
     console.log('Listening', server.address().port)
 })
+
+function calcSum(data) {
+    return data.reduce((acc, { emotion }) => {
+        // console.log(emotion)
+        Object.entries(emotion).forEach(([key, value], index) => {
+            console.log(key, value);
+            if (!acc[index]) {
+                acc.push([key, value]);
+            }
+            else {
+                acc[index][1] += value;
+            }
+        });
+        return acc;
+    }, []).map(([key, value]) => {
+        return [key, value / data.length];
+    });
+}
 
