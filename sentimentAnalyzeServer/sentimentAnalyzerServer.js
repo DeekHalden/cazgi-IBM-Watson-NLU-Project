@@ -6,7 +6,6 @@ dotenv.config();
 function getNLUInstance() {
     const apikey = process.env.API_KEY;
     const serviceUrl = process.env.API_URL;
-    console.log(serviceUrl)
     const NaturalLanguageUnderstandingV1 = require('ibm-watson/natural-language-understanding/v1');
     const { IamAuthenticator } = require('ibm-watson/auth');
 
@@ -48,7 +47,6 @@ app.get("/url/emotion", (req, res) => {
     }
     naturalLanguageUnderstanding.analyze(data)
         .then(response => {
-            console.log(response.result.keywords)
             const data = calcSum(response.result.keywords)
             return res.send({ data });
         })
@@ -138,9 +136,7 @@ let server = app.listen(8080, () => {
 
 function calcSum(data) {
     return data.reduce((acc, { emotion }) => {
-        // console.log(emotion)
         Object.entries(emotion).forEach(([key, value], index) => {
-            console.log(key, value);
             if (!acc[index]) {
                 acc.push([key, value]);
             }
